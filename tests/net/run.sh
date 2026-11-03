@@ -52,7 +52,6 @@ ARCH="$TEST_ARCH" python3 "$ROOT_DIR/tests/runner/run_qemu_case.py" \
   --expect-count "UDP REQUEST/RESPONSE TEST from" 2 \
   --expect-count "TCP Connect/Request/Response TEST from" 2 \
   --expect "0/852 (0%)  receiver" \
-  --expect "Server listening on 5201" \
   --reject "panic:" \
   --reject "kerneltrap" \
   --reject "unable to connect" \

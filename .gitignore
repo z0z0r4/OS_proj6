@@ -7,6 +7,8 @@
 .arch-*
 src/kernel/kernel
 src/user/_*
+src/user/ldso
+src/user/*.so
 src/mkfs/mkfs
 .last-test
 .last-test-arch

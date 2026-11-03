@@ -8,6 +8,7 @@
 #include "elf.h"
 
 static int loadseg(pde_t *, uint64, struct inode *, uint, uint);
+static int loadelf(pde_t *, struct inode *, struct elfhdr *, uint64, uint64 *);
 
 // map ELF permissions to PTE permission bits.
 int flags2perm(int flags)
@@ -29,12 +30,16 @@ kexec(char *path, char **argv)
   char *s, *last;
   int i, off;
   uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;
+  uint64 entry, phdr_va = 0, ibase = 0;
+  char interp[MAXPATH];
+  struct dyninfo di;
   struct elfhdr elf;
   struct inode *ip;
   struct proghdr ph;
   pagetable_t pagetable = 0, oldpagetable;
   struct proc *p = myproc();
 
+  interp[0] = 0;
   begin_op();
 
   // Open the executable file.
@@ -73,27 +78,59 @@ kexec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
+  if(loadelf(pagetable, ip, &elf, 0, &sz) < 0)
+    goto bad;
+
+  // A dynamically linked program names its interpreter (the dynamic
+  // linker) in a PT_INTERP segment; also find where its program headers
+  // ended up in memory, for the interpreter.
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(vfs_readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
-    if(ph.type != ELF_PROG_LOAD)
-      continue;
-    if(ph.memsz < ph.filesz)
-      goto bad;
-    if(ph.vaddr + ph.memsz < ph.vaddr)
-      goto bad;
-    if(ph.vaddr % PGSIZE != 0)
-      goto bad;
-    uint64 sz1;
-    if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
-      goto bad;
-    sz = sz1;
-    if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
-      goto bad;
+    if(ph.type == ELF_PROG_INTERP){
+      if(ph.filesz == 0 || ph.filesz >= sizeof(interp))
+        goto bad;
+      if(vfs_readi(ip, 0, (uint64)interp, ph.off, ph.filesz) != ph.filesz)
+        goto bad;
+      interp[ph.filesz] = 0;
+    } else if(ph.type == ELF_PROG_LOAD && ph.off <= elf.phoff &&
+              elf.phoff < ph.off + ph.filesz){
+      phdr_va = ph.vaddr + (elf.phoff - ph.off);
+    }
   }
   iunlockput(ip);
   end_op();
   ip = 0;
+
+  entry = elf.entry;
+  if(interp[0]){
+    // Load the dynamic linker (an ET_DYN image linked at 0) just above
+    // the program, and start there instead.
+    struct elfhdr ielf;
+    struct inode *iip;
+
+    begin_op();
+    if((iip = namei(interp)) == 0){
+      end_op();
+      goto bad;
+    }
+    ilock(iip);
+    ibase = PGROUNDUP(sz);
+    if(vfs_readi(iip, 0, (uint64)&ielf, 0, sizeof(ielf)) != sizeof(ielf) ||
+       ielf.magic != ELF_MAGIC || ielf.type != ELF_ET_DYN ||
+       loadelf(pagetable, iip, &ielf, ibase, &sz) < 0){
+      iunlockput(iip);
+      end_op();
+      goto bad;
+    }
+    iunlockput(iip);
+    end_op();
+    di.entry = elf.entry;
+    di.phdr = phdr_va;
+    di.phnum = elf.phnum;
+    di.base = ibase;
+    entry = ibase + ielf.entry;
+  }
 
   p = myproc();
   uint64 oldsz = p->sz;
@@ -138,6 +175,17 @@ kexec(char *path, char **argv)
   // value, which goes in a0.
   p->trapframe->a1 = sp;
 
+  // The dynamic linker also gets a pointer to what it needs to know.
+  if(interp[0]){
+    sp -= sizeof(di);
+    sp -= sp % 16;
+    if(sp < stackbase)
+      goto bad;
+    if(copyout(pagetable, sp, (char *)&di, sizeof(di)) < 0)
+      goto bad;
+    p->trapframe->a2 = sp;
+  }
+
   // Save program name for debugging.
   for(last=s=path; *s; s++)
     if(*s == '/')
@@ -149,9 +197,9 @@ kexec(char *path, char **argv)
   p->pagetable = pagetable;
   p->sz = sz;
 #ifdef ARCH_LOONGARCH
-  p->trapframe->era = elf.entry;  // initial program counter = main
+  p->trapframe->era = entry;  // initial program counter = main
 #else
-  p->trapframe->epc = elf.entry;  // initial program counter = main
+  p->trapframe->epc = entry;  // initial program counter = main
 #endif
   p->trapframe->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
@@ -168,24 +216,101 @@ kexec(char *path, char **argv)
   return -1;
 }
 
-// Load an ELF program segment into pagetable at virtual address va.
-// va must be page-aligned
-// and the pages from va to va+sz must already be mapped.
-// Returns 0 on success, -1 on failure.
+// Map and fill every PT_LOAD segment of ELF file ip (header already in
+// *elf) at base+vaddr.  *szp is the current size of the address space;
+// it grows as segments are added, even on failure, so that the caller can
+// free what was allocated.  Segments need not start on a page boundary
+// (shared objects don't).  Returns 0 on success, -1 on failure.
+static int
+loadelf(pagetable_t pagetable, struct inode *ip, struct elfhdr *elf,
+        uint64 base, uint64 *szp)
+{
+  struct proghdr ph;
+  int i, off;
+
+  for(i=0, off=elf->phoff; i<elf->phnum; i++, off+=sizeof(ph)){
+    if(vfs_readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
+      return -1;
+    if(ph.type != ELF_PROG_LOAD)
+      continue;
+    if(ph.memsz < ph.filesz)
+      return -1;
+    if(base + ph.vaddr + ph.memsz < base + ph.vaddr)
+      return -1;
+    if(ph.memsz == 0)
+      continue;
+    uint64 sz1;
+    if((sz1 = uvmalloc(pagetable, *szp, base + ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
+      return -1;
+    *szp = sz1;
+    if(loadseg(pagetable, base + ph.vaddr, ip, ph.off, ph.filesz) < 0)
+      return -1;
+  }
+  return 0;
+}
+
+//
+// the implementation of the dlmap() system call: map the shared object
+// at path (an ET_DYN ELF file) into the calling process, above everything
+// that is already there, and return its load address (0 on failure).
+// Relocation and symbol resolution are left to the dynamic linker.
+//
+uint64
+kdlmap(char *path)
+{
+  struct proc *p = myproc();
+  struct elfhdr elf;
+  struct inode *ip;
+  uint64 base, sz, oldsz;
+
+  begin_op();
+  if((ip = namei(path)) == 0){
+    end_op();
+    return 0;
+  }
+  ilock(ip);
+  oldsz = p->sz;
+  base = PGROUNDUP(oldsz);
+  sz = oldsz;
+  if(vfs_readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf) ||
+     elf.magic != ELF_MAGIC || elf.type != ELF_ET_DYN ||
+     loadelf(p->pagetable, ip, &elf, base, &sz) < 0){
+    iunlockput(ip);
+    end_op();
+    uvmdealloc(p->pagetable, sz, oldsz);
+    return 0;
+  }
+  iunlockput(ip);
+  end_op();
+  p->sz = sz;
+  // the new pages were written through the kernel's view of memory
+  // and will be executed: make the instruction stream coherent
+#ifdef ARCH_LOONGARCH
+  asm volatile("ibar 0");
+#else
+  asm volatile("fence.i");
+#endif
+  return base;
+}
+
+// Load an ELF program segment into pagetable at virtual address va, which
+// need not be page-aligned.  The pages from va to va+sz must already be
+// mapped.  Returns 0 on success, -1 on failure.
 static int
 loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz)
 {
   uint i, n;
   uint64 pa;
 
-  for(i = 0; i < sz; i += PGSIZE){
-    pa = walkaddr(pagetable, va + i);
+  for(i = 0; i < sz; i += n){
+    uint64 a = va + i;
+    pa = walkaddr(pagetable, PGROUNDDOWN(a));
     if(pa == 0)
       panic("loadseg: address should exist");
-    if(sz - i < PGSIZE)
+    n = PGSIZE - a % PGSIZE;
+    if(n > sz - i)
       n = sz - i;
-    else
-      n = PGSIZE;
+    pa += a % PGSIZE;
 #ifdef ARCH_LOONGARCH
     pa |= DMWIN_MASK;
 #endif

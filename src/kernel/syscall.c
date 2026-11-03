@@ -114,6 +114,7 @@ extern uint64 sys_shutdown(void);
 extern uint64 sys_nstime(void);
 extern uint64 sys_rcvtimeo(void);
 extern uint64 sys_yield(void);
+extern uint64 sys_dlmap(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -152,6 +153,7 @@ static uint64 (*syscalls[])(void) = {
 [SYS_nstime] sys_nstime,
 [SYS_rcvtimeo] sys_rcvtimeo,
 [SYS_yield] sys_yield,
+[SYS_dlmap] sys_dlmap,
 };
 
 void

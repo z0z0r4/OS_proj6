@@ -9,7 +9,7 @@ TEST_ARCH ?= riscv
 	mount_lifecycle remount_io mount_storm \
 	loongarch_baseline loongarch_public_vfs loongarch_ext2 loongarch_fat32 loongarch_error \
 	loongarch_semantics loongarch_persist loongarch_smp loongarch_mount_lifecycle \
-	loongarch_remount_io loongarch_mount_storm net loongarch_net \
+	loongarch_remount_io loongarch_mount_storm net loongarch_net dynlink loongarch_dynlink \
 	test_public_vfs test_ext2 test_fat32 test_error_path run verify-all
 
 test_baseline:
@@ -374,6 +374,12 @@ net:
 loongarch_net:
 	@$(MAKE) TEST_ARCH=loongarch net
 
+dynlink:
+	$(call prepare_extended_case,dynlink)
+
+loongarch_dynlink:
+	@$(MAKE) TEST_ARCH=loongarch dynlink
+
 loongarch_mount_lifecycle:
 	@$(MAKE) TEST_ARCH=loongarch mount_lifecycle
 
@@ -408,6 +414,7 @@ run:
 		smp) ARCH="$$TEST_ARCH" TEST_ARCH="$$TEST_ARCH" bash "tests/smp/run.sh" ;; \
 		mount_lifecycle) ARCH="$$TEST_ARCH" TEST_ARCH="$$TEST_ARCH" bash "tests/mount_lifecycle/run.sh" ;; \
 		remount_io) ARCH="$$TEST_ARCH" TEST_ARCH="$$TEST_ARCH" bash "tests/remount_io/run.sh" ;; \
+		dynlink) ARCH="$$TEST_ARCH" TEST_ARCH="$$TEST_ARCH" bash "tests/dynlink/run.sh" ;; \
 		net) ARCH="$$TEST_ARCH" TEST_ARCH="$$TEST_ARCH" bash "tests/net/run.sh" ;; \
 		mount_storm) ARCH="$$TEST_ARCH" TEST_ARCH="$$TEST_ARCH" bash "tests/mount_storm/run.sh" ;; \
 		*) echo "Unknown prepared test: $$TEST_NAME"; exit 1 ;; \

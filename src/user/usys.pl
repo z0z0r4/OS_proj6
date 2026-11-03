@@ -61,3 +61,4 @@ entry("shutdown");
 entry("nstime");
 entry("rcvtimeo");
 entry("yield");
+entry("dlmap");

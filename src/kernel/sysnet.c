@@ -164,6 +164,17 @@ sys_yield(void)
   return 0;
 }
 
+// map a shared object into the process (see exec.c)
+uint64
+sys_dlmap(void)
+{
+  char path[MAXPATH];
+
+  if(argstr(0, path, MAXPATH) < 0)
+    return 0;
+  return kdlmap(path);
+}
+
 // monotonic clock in nanoseconds
 uint64
 sys_nstime(void)

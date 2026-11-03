@@ -1,7 +1,7 @@
 # xv6 网络功能（分支 `net-native`）
 
 在基线 xv6（RISC-V + LoongArch）上增加一个小型 TCP/IP 协议栈、virtio-net 驱动和 xv6 风格的套接字系统调用，
-并把 iperf 与 netperf 重写为 xv6 用户程序。**不兼容 Linux ABI，也没有动态链接**；基线的系统调用、文件系统和测试不受影响。
+并把 iperf 与 netperf 重写为 xv6 用户程序。**不兼容 Linux ABI**（动态链接见 `DYNLINK.md`）；基线的系统调用、文件系统和测试不受影响。
 
 ## 组成
 

@@ -15,6 +15,7 @@ void            netinit(void);
 void            net_intr(void);
 void            net_tick(void);
 int             net_irq(void);
+uint64          kdlmap(char*);
 int             vnet_pending(void);
 uint64          hal_time_ns(void);
 

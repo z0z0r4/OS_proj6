@@ -37,6 +37,13 @@ int shutdown(int);
 uint64 nstime(void);
 int rcvtimeo(int, int);
 int yield(void);
+uint64 dlmap(const char*);
+
+// dl.c (libxv6.so only)
+void *dlopen(const char*);
+void *dlsym(void*, const char*);
+int dlclose(void*);
+const char *dlerror(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

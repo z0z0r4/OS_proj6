@@ -235,6 +235,42 @@ UPROGS=\
 	$U/_netperf\
 	$U/_netserver\
 
+# ---- dynamic linking: ldso (the interpreter), libxv6.so (the C library),
+# two demo libraries and two dynamically linked programs
+DYNFLAGS = -s -z max-page-size=4096 -z now -z norelro --hash-style=sysv   # -s: the root fs is small
+LDSO = $U/ldso
+LIBXV6 = $U/libxv6.so
+DYNLIBS = $(LDSO) $(LIBXV6) $U/libgreet.so $U/libplugin.so
+DYNPROGS = $U/_dynhello $U/_dyntest
+
+$U/%.pic.o: $U/%.c $(ARCH_STAMP)
+	$(CC) $(CFLAGS) -fPIC -c -o $@ $<
+
+$U/%.pie.o: $U/%.c $(ARCH_STAMP)
+	$(CC) $(CFLAGS) -fPIE -c -o $@ $<
+
+$(LDSO): $U/ldso.pie.o $U/usys.o
+	$(LD) -pie $(DYNFLAGS) -Bsymbolic --no-dynamic-linker -e ld_start -o $@ $^
+
+$(LIBXV6): $U/ulib.pic.o $U/printf.pic.o $U/umalloc.pic.o $U/dl.pic.o $U/usys.o
+	$(LD) -shared $(DYNFLAGS) -soname libxv6.so -o $@ $^
+
+$U/libgreet.so: $U/greet.pic.o $(LIBXV6)
+	$(LD) -shared $(DYNFLAGS) -soname libgreet.so -o $@ $^
+
+$U/libplugin.so: $U/plugin.pic.o $U/libgreet.so $(LIBXV6)
+	$(LD) -shared $(DYNFLAGS) -soname libplugin.so -o $@ $^
+
+$U/_dynhello: $U/dynhello.pie.o $U/libgreet.so $(LIBXV6)
+	$(LD) -pie $(DYNFLAGS) --dynamic-linker=/ldso -e main -o $@ $^
+
+$U/_dyntest: $U/dyntest.pie.o $(LIBXV6)
+	$(LD) -pie $(DYNFLAGS) --dynamic-linker=/ldso -e main -o $@ $^
+
+# the network programs are stripped for the same reason
+$U/_iperf $U/_netperf $U/_netserver: $U/_%: $U/%.o $(ULIB) $(USER_LD)
+	$(LD) $(LDFLAGS) -s -T $(USER_LD) -o $@ $< $(ULIB)
+
 EXT2IMG = ext2.img
 EXT2_BLOCKS = 4096
 FAT32IMG = fat32.img
@@ -264,8 +300,8 @@ tests/test2: $U/_test2
 tests/hello: $U/_hello
 	ln -sf ../user/_hello $@
 
-fs.img: mkfs/mkfs README hello.c tests/cmds.sh tests/hello.c tests/test1 tests/test2 tests/hello $(UPROGS) $(EXT2IMG) $(FAT32IMG)
-	mkfs/mkfs fs.img README hello.c tests/cmds.sh tests/hello.c tests/test1 tests/test2 tests/hello $(UPROGS)
+fs.img: mkfs/mkfs README hello.c tests/cmds.sh tests/hello.c tests/test1 tests/test2 tests/hello $(UPROGS) $(DYNLIBS) $(DYNPROGS) $(EXT2IMG) $(FAT32IMG)
+	mkfs/mkfs fs.img README hello.c tests/cmds.sh tests/hello.c tests/test1 tests/test2 tests/hello $(UPROGS) $(DYNLIBS) $(DYNPROGS)
 	cat $(EXT2IMG) >> fs.img
 	cat $(FAT32IMG) >> fs.img
 
@@ -282,7 +318,7 @@ clean:
 	mkfs/mkfs mkfs/mkfat32 .gdbinit \
 	tests/test1 tests/test2 tests/hello \
         $U/usys.S \
-	$(UPROGS)
+	$(UPROGS) $(DYNLIBS) $(DYNPROGS)
 
 # try to generate a unique GDB port
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)

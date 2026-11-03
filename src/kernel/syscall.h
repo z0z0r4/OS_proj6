@@ -33,3 +33,4 @@
 #define SYS_nstime   32
 #define SYS_rcvtimeo 33
 #define SYS_yield    34
+#define SYS_dlmap    35
