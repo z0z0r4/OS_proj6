@@ -42,6 +42,7 @@ tests/
 - `semantics`：挂载点 `..`、ext2 硬链接、fat32 拒链、unlinkopen，以及 umount busy/成功/底层目录恢复/重挂载。
 - `persist`：写入→重启→重挂载→逐字节读回（含 1MiB 双间接文件）。
 - `smp`：CPUS=3 三路并发 bigfile + 挂载点内 stressfs + lookup/mount/umount 竞态（C1 与卸载生命周期回归）。
+- `net`：网络测试，重写的 iperf / netperf 经回环与 virtio-net（到宿主机）运行，见根目录 `NET.md`。
 - `mount_lifecycle`：非法卸载、后端失败回滚、挂载点删除保护、嵌套挂载 busy、下层目录恢复和跨挂载点重挂载。
 - `remount_io`：ext2/FAT32 各写入 1 MiB，三轮卸载/重挂载后逐字节复验，并检查每轮下层目录恢复。
 - `mount_storm`：CPUS=3 下，ext2/FAT32 各由 2 个 lookup worker 与 2 个拓扑 worker 执行 256 轮竞争。

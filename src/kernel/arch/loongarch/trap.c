@@ -200,6 +200,13 @@ devintr()
         virtio_disk_intr();
         hal_irq_complete(1UL << VIRTIO0_IRQ);
       } while(virtio_disk_pending());
+    } else if(net_irq() >= 0 && (irq & (1UL << net_irq()))){
+      // Same lost-edge hazard as the disk (see above): keep going until
+      // no frame is left after the line has been cleared.
+      do {
+        net_intr();
+        hal_irq_complete(1UL << net_irq());
+      } while(vnet_pending());
     } else if(irq){
        printf("unexpected interrupt irq=0x%lx\n", irq);
        hal_irq_complete(irq);
@@ -212,6 +219,7 @@ devintr()
       // Backstop for lost virtio completion interrupts: the timer
       // does not depend on the external interrupt chain.
       virtio_disk_watchdog();
+      net_tick();
     }
 
     w_csr_ticlr(r_csr_ticlr() | CSR_TICLR_CLR);

@@ -29,6 +29,7 @@ main()
     fileinit();      // file table
     vfsinit();       // virtual file system
     hal_disk_init(); // emulated hard disk
+    netinit();       // network stack and virtio-net
     userinit();      // first user process
     __sync_synchronize();
     started = 1;

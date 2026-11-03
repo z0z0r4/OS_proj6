@@ -5,6 +5,7 @@
 #define UART0 (0x1fe001e0UL | DMWIN_MASK)
 #define UART0_IRQ 2
 #define VIRTIO0_IRQ 17
+#define PCI_IRQ_MASK (0xfUL << 16)   // PCH-PIC lines 16..19 carry PCI INTx
 
 #define LS7A_PCH_REG_BASE (0x10000000UL | DMWIN_MASK)
 #define LS7A_INT_MASK_REG (LS7A_PCH_REG_BASE + 0x020)

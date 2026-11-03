@@ -169,6 +169,7 @@ clockintr()
     ticks++;
     wakeup(&ticks);
     release(&tickslock);
+    net_tick();
   }
 
   // ask for the next timer interrupt. this also clears
@@ -197,6 +198,8 @@ devintr()
       uartintr();
     } else if(irq == VIRTIO0_IRQ){
       virtio_disk_intr();
+    } else if(irq == net_irq()){
+      net_intr();
     } else if(irq){
       printf("unexpected interrupt irq=%d\n", irq);
     }

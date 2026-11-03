@@ -22,3 +22,14 @@
 #define SYS_close  21
 #define SYS_mount  22
 #define SYS_umount 23
+#define SYS_socket   24
+#define SYS_bind     25
+#define SYS_listen   26
+#define SYS_accept   27
+#define SYS_connect  28
+#define SYS_sendto   29
+#define SYS_recvfrom 30
+#define SYS_shutdown 31
+#define SYS_nstime   32
+#define SYS_rcvtimeo 33
+#define SYS_yield    34

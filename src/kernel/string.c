@@ -43,9 +43,20 @@ memmove(void *dst, const void *src, uint n)
     d += n;
     while(n-- > 0)
       *--d = *--s;
-  } else
+  } else {
+    // forward copy: eight bytes at a time when source and destination
+    // have the same alignment (the network stack moves a lot of data)
+    if(n >= 16 && (((uint64)s ^ (uint64)d) & 7) == 0){
+      while((uint64)d & 7){
+        *d++ = *s++;
+        n--;
+      }
+      for(; n >= 8; n -= 8, s += 8, d += 8)
+        *(uint64*)d = *(const uint64*)s;
+    }
     while(n-- > 0)
       *d++ = *s++;
+  }
 
   return dst;
 }

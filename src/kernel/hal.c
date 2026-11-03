@@ -33,6 +33,13 @@ hal_irq_complete(int irq)
   plic_complete(irq);
 }
 
+// Monotonic time in nanoseconds (the timer ticks at 10MHz under qemu virt).
+uint64
+hal_time_ns(void)
+{
+  return r_time() * 100;
+}
+
 void
 hal_disk_init(void)
 {

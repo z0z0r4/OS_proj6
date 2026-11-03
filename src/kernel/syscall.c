@@ -103,6 +103,17 @@ extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
 extern uint64 sys_mount(void);
 extern uint64 sys_umount(void);
+extern uint64 sys_socket(void);
+extern uint64 sys_bind(void);
+extern uint64 sys_listen(void);
+extern uint64 sys_accept(void);
+extern uint64 sys_connect(void);
+extern uint64 sys_sendto(void);
+extern uint64 sys_recvfrom(void);
+extern uint64 sys_shutdown(void);
+extern uint64 sys_nstime(void);
+extern uint64 sys_rcvtimeo(void);
+extern uint64 sys_yield(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -130,6 +141,17 @@ static uint64 (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 [SYS_mount]   sys_mount,
 [SYS_umount]  sys_umount,
+[SYS_socket] sys_socket,
+[SYS_bind] sys_bind,
+[SYS_listen] sys_listen,
+[SYS_accept] sys_accept,
+[SYS_connect] sys_connect,
+[SYS_sendto] sys_sendto,
+[SYS_recvfrom] sys_recvfrom,
+[SYS_shutdown] sys_shutdown,
+[SYS_nstime] sys_nstime,
+[SYS_rcvtimeo] sys_rcvtimeo,
+[SYS_yield] sys_yield,
 };
 
 void

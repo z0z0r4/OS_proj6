@@ -10,6 +10,14 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
+// net.c
+void            netinit(void);
+void            net_intr(void);
+void            net_tick(void);
+int             net_irq(void);
+int             vnet_pending(void);
+uint64          hal_time_ns(void);
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);

@@ -26,6 +26,17 @@ int umount(const char*);
 char* sys_sbrk(int,int);
 int pause(int);
 int uptime(void);
+int socket(int);
+int bind(int, int);
+int listen(int);
+int accept(int, uint*, int*);
+int connect(int, uint, int);
+int sendto(int, const void*, int, uint, int);
+int recvfrom(int, void*, int, uint*, int*);
+int shutdown(int);
+uint64 nstime(void);
+int rcvtimeo(int, int);
+int yield(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

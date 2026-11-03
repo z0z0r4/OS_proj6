@@ -34,9 +34,18 @@ hal_irq_complete(int irq)
   // the LS7A APIC, so it must be cleared there as well.  The UART is
   // edge-triggered and needs no APIC clear.  Every interrupt is
   // acknowledged at the EXTIOI.
-  if(irq & (1UL << VIRTIO0_IRQ))
-    apic_complete(1UL << VIRTIO0_IRQ);
+  if(irq & PCI_IRQ_MASK)
+    apic_complete(irq & PCI_IRQ_MASK);
   extioi_complete(irq);
+}
+
+// Monotonic time in nanoseconds (the stable counter runs at 100MHz).
+uint64
+hal_time_ns(void)
+{
+  uint64 t;
+  asm volatile("rdtime.d %0, $zero" : "=r" (t));
+  return t * 10;
 }
 
 void

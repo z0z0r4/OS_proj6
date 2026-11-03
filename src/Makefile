@@ -23,7 +23,10 @@ COMMON_OBJS = \
   $K/file.o \
   $K/pipe.o \
   $K/exec.o \
-  $K/sysfile.o
+  $K/sysfile.o \
+  $K/net.o \
+  $K/sysnet.o \
+  $K/virtio_net.o
 
 ifeq ($(ARCH),riscv)
 ARCH_OBJS = \
@@ -228,6 +231,9 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
+	$U/_iperf\
+	$U/_netperf\
+	$U/_netserver\
 
 EXT2IMG = ext2.img
 EXT2_BLOCKS = 4096
@@ -289,14 +295,16 @@ CPUS := 3
 endif
 
 ifeq ($(ARCH),loongarch)
-QEMUOPTS = -machine virt -kernel $K/kernel -m 1G -smp $(CPUS) -nographic -no-reboot -net none
+QEMUOPTS = -machine virt -kernel $K/kernel -m 1G -smp $(CPUS) -nographic -no-reboot
 QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-pci,drive=x0,disable-legacy=on,vectors=0
+QEMUOPTS += -netdev user,id=n0 -device virtio-net-pci,netdev=n0,disable-legacy=on,vectors=0
 else
 QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+QEMUOPTS += -netdev user,id=n0 -device virtio-net-device,netdev=n0
 endif
 
 qemu: check-qemu-version $K/kernel fs.img
